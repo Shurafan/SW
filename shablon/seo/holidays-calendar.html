@@ -1,0 +1,96 @@
+<div class="pay-result" id="pay-result" hidden>
+  <h3>Результат оплаты</h3>
+  <pre class="pay-result-out" data-pay-result></pre>
+</div>
+
+<div class="hc-landing">
+  <blockquote class="cite">
+    <p>Бухгалтерский учёт — язык бизнеса.</p>
+    <cite>Уоррен Баффет</cite>
+  </blockquote>
+  <p><strong class="mark">JSON API</strong> производственного календаря РФ: выходные, праздники, предпраздничные и нерабочие дни — одним запросом <code>GET /api/calendar</code>. Токен привязывается к IP или домену. При необходимости — региональный календарь субъекта (<code>area</code>).</p>
+  <p>Подходит для расчёта KPI, дедлайнов, отпусков, смен и нормы рабочего времени без ручной сверки с постановлениями. Подробнее о продукте — в <a href="portfolio/worker-calendar">кейсе «Рабочий календарь»</a>.</p>
+
+  <div class="packs">
+    <article class="price">
+      <h3>Физлицо</h3>
+      <p class="sum">500&nbsp;₽/год</p>
+      <p>Оплата картой через Т‑Банк. Токен на 1 или 2 года — сумма умножается на срок.</p>
+    </article>
+    <article class="term">
+      <h3>Юрлицо</h3>
+      <p class="sum">5&nbsp;000&nbsp;₽/год</p>
+      <p>Счёт по ИНН. Реквизиты подтягиваются из ЕГРЮЛ/ЕГРИП. Срок — 1 или 2 года.</p>
+    </article>
+    <article class="who">
+      <h3>Что в ответе</h3>
+      <p>Массивы дат ISO, срок действия токена, при <code>area</code> — региональные праздники и нормативное обоснование.</p>
+    </article>
+  </div>
+
+  <p><button type="button" class="pay-btn kalendar-token-btn" data-pay-open>Оформить доступ</button></p>
+
+  <h2 class="mark">Как подключить</h2>
+  <p>После оплаты на этой странице появится токен. Дальше — один запрос:</p>
+<pre><code>GET /api/calendar?token=YOUR_TOKEN
+
+# регион (опционально):
+GET /api/calendar?token=YOUR_TOKEN&amp;area=23
+GET /api/calendar?token=YOUR_TOKEN&amp;area=Краснодарский%20край
+
+# или заголовок
+Authorization: Bearer YOUR_TOKEN
+X-Area: 23</code></pre>
+  <p>Список регионов: <code>GET /api/areas</code>. Без <code>area</code> — федеральный календарь.</p>
+
+  <h2>Пример ответа</h2>
+<pre><code>{
+  "weekend": ["2026-01-01", "2026-01-02", "2026-01-03"],
+  "holiday": ["2026-01-01", "2026-01-07"],
+  "preholiday": ["2026-04-30"],
+  "nowork": [],
+  "validFrom": "2026-07-25T09:19:16.378Z",
+  "validTo": "2027-07-25T09:19:16.378Z"
+}</code></pre>
+
+  <h2>Возможности</h2>
+  <ul>
+    <li><strong>Быстрая интеграция.</strong> Один HTTP-запрос, JSON без лишней обвязки.</li>
+    <li><strong>Регионы РФ.</strong> Код субъекта, короткое или полное название.</li>
+    <li><strong>Нормативная база.</strong> У даты — реквизиты актов, которыми она закреплена.</li>
+    <li><strong>Архив с 2018 года</strong> и прогнозы до 2031 — для аналитики и планирования.</li>
+  </ul>
+
+  <h2>Для кого</h2>
+  <p>Кадровые и расчётные системы, ERP/CRM, сервисы отпусков и смен, внутренние дашборды — везде, где важны рабочие дни и переносы. Юридическая база — ТК РФ и акты Правительства, Госдумы и Президента.</p>
+
+  <section class="hc-cta" id="pay">
+    <h2>Оформить доступ</h2>
+    <p class="pay-lead">Укажите IP или домен, срок и e-mail. После оплаты токен появится в блоке «Результат оплаты» вверху страницы и уйдёт на почту.</p>
+    <button type="button" class="pay-btn kalendar-token-btn" data-pay-open>Получить токен</button>
+  </section>
+
+  <div class="faq">
+    <h2>Вопросы</h2>
+    <details name="hc-faq">
+      <summary>Как привязан токен?</summary>
+      <p>К IP-адресу или домену, который вы укажете при оплате. Запросы с другого хоста API не примет.</p>
+    </details>
+    <details name="hc-faq">
+      <summary>Можно продлить на 2 года?</summary>
+      <p>Да. При оформлении выберите срок 1 или 2 года — сумма пересчитается автоматически.</p>
+    </details>
+    <details name="hc-faq">
+      <summary>Юрлицо — как оплатить?</summary>
+      <p>В форме выберите «Юрлицо», введите ИНН. Мы сформируем счёт; после оплаты токен выдаётся так же, как для физлица.</p>
+    </details>
+    <details name="hc-faq">
+      <summary>Куда вернусь после оплаты картой?</summary>
+      <p>На эту страницу. Статус проверится автоматически, токен — в блоке «Результат оплаты».</p>
+    </details>
+    <details name="hc-faq">
+      <summary>Есть демо без оплаты?</summary>
+      <p>На странице <a href="portfolio/worker-calendar">кейса</a> — живой пример с date-picker и календарём на 2026 год.</p>
+    </details>
+  </div>
+</div>

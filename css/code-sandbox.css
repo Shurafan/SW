@@ -1,0 +1,37 @@
+.sw-code-sandbox {
+  margin: 1em 0; color: #333; color-scheme: light;
+  border: 1px solid #d6d6d6; border-radius: 6px;
+  overflow: hidden; background: #fafafa;
+}
+
+/* component-sw.css подключать только в iframe превью, не на всю страницу:
+   глобальный :root { background-color } ломает вёрстку main на ширине > 1350px */
+.sw-code-sandbox__tabs {
+  display: flex; gap: 0; border-bottom: 1px solid #d6d6d6;
+  background: #f4f4f4;
+}
+.sw-code-sandbox__tab {
+  flex: 0 0 auto; padding: .45em 1em; margin: 0; color: #333;
+  border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  background: transparent; cursor: pointer;
+  font: inherit; opacity: .7; appearance: none; -webkit-appearance: none;
+}
+.sw-code-sandbox__tab.is-active {
+  opacity: 1; color: #333; border-bottom-color: #3eaf4e;
+  background: #fff;
+}
+.sw-code-sandbox__tab:focus-visible {
+  outline: 2px solid #3eaf4e; outline-offset: -2px;
+}
+.sw-code-sandbox__panel {
+  padding: .5em; background: #fff;
+}
+.sw-code-sandbox__panel[hidden] { display: none !important; }
+.sw-code-sandbox__iframe {
+  display: block; width: 100%; min-height: 80px; border: 0;
+  border-radius: 4px; background: #fff;
+}
+.sw-code-sandbox__code {
+  margin: 0; padding: 1em; overflow-x: auto;
+  font-size: .9em; line-height: 1.45; color: #333; background: #fff;
+}

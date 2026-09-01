@@ -1,0 +1,17 @@
+# Секреты и локальная среда
+env
+.env
+.env.*
+*.pem
+*.key
+
+# Данные оплаты на сервере
+assets/pay/orders/*
+!assets/pay/orders/.gitkeep
+assets/pay/invoices/*
+!assets/pay/invoices/.gitkeep
+
+# IDE / OS
+.idea/
+*.swp
+.DS_Store

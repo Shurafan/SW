@@ -1,0 +1,142 @@
+[[$head]]
+<body>
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+   (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+   m[i].l=1*new Date();
+   for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+   k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+   (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+   ym(97727732, "init", {clickmap:true,trackLinks:true,accurateTrackBounce:true,webvisor:true});
+</script>
+<noscript><div><img src="https://mc.yandex.ru/watch/97727732" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+<!-- /Yandex.Metrika counter -->
+[[$header]]
+<main id="content">
+  <aside class="region-left-content">
+    <div class="block-comenu">
+      [[!Wayfinder? &startId=` [[!getParentId]]` &level=`1` &displayStart=`1` &startItemTpl=`WfSmWrapper` &ignoreHidden=`false`]]
+    </div>
+  </aside>
+  <div class="region-content">
+    <div class="content">
+      <div class="anons">
+        [[*introtext]]
+        <img class="mouse" onclick="down();" src="assets/teme_sw/images/mouse.svg" alt=""/>
+      </div>
+      <div class="field-body">
+        [[*content]]
+
+        <section class="pay" data-pay-endpoint="/ajaxress"
+                 data-price-year="[[++pay_price_year:default=`500`]]"
+                 data-price-year-company="[[++pay_price_year_company:default=`5000`]]">
+          <h2>Оплата</h2>
+          <p class="pay-lead">Выберите тип плательщика. Для физлиц — оплата картой через Т‑Банк. Для юрлиц — счёт по ИНН.</p>
+
+          <div class="pay-tabs" role="tablist">
+            <button type="button" class="pay-tab is-active" role="tab" aria-selected="true" data-pay-tab="person">Физлицо</button>
+            <button type="button" class="pay-tab" role="tab" aria-selected="false" data-pay-tab="company">Юрлицо</button>
+          </div>
+
+          <!-- Физлицо: Т-Банк -->
+          <form class="pay-form is-active" id="pay-person" data-pay-form="person" novalidate>
+            <h3>Оплата через Т‑Банк</h3>
+            <p class="pay-hint">Укажите IP или домен и срок. После оплаты запустится серверный скрипт — результат появится на этой странице.</p>
+
+            <div class="pay-field">
+              <label for="person-target">IP или домен</label>
+              <input id="person-target" name="target" type="text" required
+                     placeholder="192.168.0.1 или example.ru" autocomplete="off">
+            </div>
+
+            <fieldset class="pay-years">
+              <legend>Срок</legend>
+              <label class="pay-radio">
+                <input type="radio" name="years" value="1" checked>
+                <span>1 год</span>
+              </label>
+              <label class="pay-radio">
+                <input type="radio" name="years" value="2">
+                <span>2 года</span>
+              </label>
+            </fieldset>
+
+            <div class="pay-field">
+              <label for="person-email">E-mail для результата</label>
+              <input id="person-email" name="email" type="email" required placeholder="name@mail.ru" autocomplete="email">
+            </div>
+
+            <p class="pay-sum">К оплате: <strong data-pay-sum>500&nbsp;₽</strong></p>
+
+            <div class="pay-actions">
+              <button type="submit" class="pay-btn">Оплатить</button>
+            </div>
+            <p class="pay-msg" data-pay-msg hidden></p>
+          </form>
+
+          <!-- Юрлицо: ИНН + счёт -->
+          <form class="pay-form" id="pay-company" data-pay-form="company" novalidate hidden>
+            <h3>Счёт для юрлица</h3>
+            <p class="pay-hint">Укажите ИНН организации — мы сформируем счёт на оплату.</p>
+
+            <div class="pay-field">
+              <label for="company-inn">ИНН</label>
+              <input id="company-inn" name="inn" type="text" inputmode="numeric" required
+                     pattern="\d{10}|\d{12}" maxlength="12" placeholder="10 или 12 цифр" autocomplete="off">
+            </div>
+
+            <div class="pay-field">
+              <label for="company-name">Наименование организации</label>
+              <input id="company-name" name="company" type="text" required placeholder="ООО «Пример»" autocomplete="organization">
+            </div>
+
+            <div class="pay-field">
+              <label for="company-target">IP или домен</label>
+              <input id="company-target" name="target" type="text" required
+                     placeholder="192.168.0.1 или example.ru" autocomplete="off">
+            </div>
+
+            <fieldset class="pay-years">
+              <legend>Срок</legend>
+              <label class="pay-radio">
+                <input type="radio" name="years" value="1" checked>
+                <span>1 год</span>
+              </label>
+              <label class="pay-radio">
+                <input type="radio" name="years" value="2">
+                <span>2 года</span>
+              </label>
+            </fieldset>
+
+            <div class="pay-field">
+              <label for="company-email">E-mail для счёта</label>
+              <input id="company-email" name="email" type="email" required placeholder="buh@company.ru" autocomplete="email">
+            </div>
+
+            <p class="pay-sum">Сумма счёта: <strong data-pay-sum>5&nbsp;000&nbsp;₽</strong></p>
+
+            <div class="pay-actions">
+              <button type="submit" class="pay-btn pay-btn--outline">Выставить счёт</button>
+            </div>
+            <p class="pay-msg" data-pay-msg hidden></p>
+          </form>
+
+          <!-- Результат после оплаты / счёта -->
+          <div class="pay-result" id="pay-result" hidden>
+            <h3>Результат</h3>
+            <pre class="pay-result-out" data-pay-result></pre>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="region-bottom-content">
+    <h2>У Вас есть проект?</h2>
+    [[!AjaxFormChunk? &chunk=`tpl.AjaxForm.newProject` &ind=`futerform`]]
+  </div>
+</footer>
+<script src="assets/teme_sw/js/listing.js?v=20260831u"></script>
+<script src="assets/teme_sw/js/payment.js"></script>
+[[$ofter]]

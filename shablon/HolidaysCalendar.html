@@ -1,0 +1,23 @@
+[[$head]]
+<body>
+[[$header]]
+<main id="content">
+  <div class="region-content">
+    <div class="content">
+      <div class="anons">
+        [[*introtext]]
+        <img class="mouse" onclick="down();" src="assets/teme_sw/images/mouse.svg" alt=""/>
+      </div>
+      <div class="field-body">
+        [[*content]]
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="region-bottom-content">
+    <h2>У Вас есть проект?</h2>
+    [[!AjaxFormName? &chunk=`tpl.AjaxForm.newProject` &ind=`futerform`]]
+  </div>
+</footer>
+[[$ofter]]
