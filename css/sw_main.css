@@ -349,6 +349,34 @@ main .field-body .packs p a{color: #7ecbff;}
 .packs > .landing{background-image: url(/pic/landing-pl.jpg);}
 .packs > .corporate{background-image: url(/pic/corporate-pl.jpg);}
 .packs > .shop{background-image: url(/pic/shop-pl.jpg);}
+.process-steps{display:grid; gap:12px; margin:1.5em 0;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+}
+.process-step{position:relative; min-height:15rem;
+  overflow:hidden; border-radius:.5rem; background:#252d38;
+}
+.process-step > a{display:flex; min-height:15rem;
+  box-sizing:border-box; padding:16px; color:#fff;
+  flex-direction:column; justify-content:flex-end;
+  background:center/cover no-repeat;
+}
+.process-step > a::before{content:""; position:absolute;
+  inset:0; z-index:1; background:linear-gradient(180deg,
+    rgba(14,31,49,.12),rgba(14,31,49,.9));
+}
+.process-step img{position:absolute; inset:0; z-index:0;
+  width:100%; height:100%; object-fit:cover;
+}
+.process-step > a:focus-visible{outline:3px solid #ffe14d;
+  outline-offset:-5px;
+}
+.process-step > a:hover{transform:scale(1.02);}
+.process-step > a > :not(img){position:relative; z-index:2;}
+.process-step .num{margin:0 0 .25rem; font-size:.85rem;
+  font-weight:700; letter-spacing:.08em; color:#ffe14d;
+}
+.process-step h3{margin:0 0 .35rem; color:#fff;}
+.process-step p{margin:0;}
 .faq{text-align: left; max-width: 36rem;
   margin: 1.25em auto 1.25em 0;
 }
@@ -519,10 +547,14 @@ main .region-content > .block-plitka > .faq{align-self: stretch;
 @media (max-width:930px){
 	header .slogan {display: none;}
 	.packs{grid-template-columns: 1fr;}
+	.process-steps{grid-template-columns:repeat(2,minmax(0,1fr));}
 	main .field-body .block-content{width: 96%}
 	main .field-body .block-right{position: relative;width: auto;top: auto;margin-left: 6px;margin-right: 6px;bottom: 16px;left: auto;}
 	main .field-body .team{flex-direction: column;}
 	main .field-body .team .circle{width:200px;margin-top:-100px;}
+}
+@media (max-width:610px){
+	.process-steps{grid-template-columns:1fr;}
 }
 @media (max-width:1099px){
 	header .logo{padding-left: 10px;}

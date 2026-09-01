@@ -4,6 +4,7 @@ env
 .env.*
 *.pem
 *.key
+backup/
 
 # Данные оплаты на сервере
 assets/pay/orders/*
