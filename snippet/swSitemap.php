@@ -31,6 +31,10 @@ $priorityFor = static function (string $url): array {
     if (str_starts_with($path, '/process') || str_starts_with($path, '/journal')) {
         return ['0.5', 'monthly'];
     }
+    # Хаб библиотеки — витрина продукта (0.5). Дочерние доки исключены выше и noindex.
+    if ($path === '/component-sw' || $path === '/component-sw/') {
+        return ['0.5', 'weekly'];
+    }
     if (str_starts_with($path, '/component-sw')) {
         return ['0.2', 'monthly'];
     }
