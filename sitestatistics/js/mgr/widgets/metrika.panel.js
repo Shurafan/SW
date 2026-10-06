@@ -34,6 +34,31 @@ siteStatistics.panel.Metrika = function (config) {
 				listeners: {
 					select: {fn: this.reloadCharts, scope: this}
 				}
+			}, {
+				xtype: 'tbtext',
+				text: _('sitestatistics_metrika_page_id') + ':'
+			}, {
+				xtype: 'textfield',
+				id: 'sitestatistics-metrika-page',
+				emptyText: _('sitestatistics_metrika_page_id_empty'),
+				width: 120,
+				enableKeyEvents: true,
+				listeners: {
+					specialkey: {
+						fn: function (f, e) {
+							if (e.getKey() === e.ENTER) this.reloadCharts();
+						},
+						scope: this
+					},
+					blur: {
+						fn: function () {
+							var rid = this.pageRid();
+							if (rid === this._chartRid) return;
+							this.reloadCharts();
+						},
+						scope: this
+					}
+				}
 			}, '->', {
 				xtype: 'button',
 				text: _('sitestatistics_metrika_refresh'),
@@ -459,10 +484,18 @@ Ext.extend(siteStatistics.panel.Metrika, MODx.Panel, {
 		});
 	},
 
+	pageRid: function () {
+		var pageCmp = Ext.getCmp('sitestatistics-metrika-page');
+		var raw = pageCmp ? String(pageCmp.getValue() || '').replace(/\D/g, '') : '';
+		return raw ? parseInt(raw, 10) : 0;
+	},
+
 	reloadCharts: function () {
 		var me = this;
 		var periodCmp = Ext.getCmp('sitestatistics-metrika-period');
 		var days = periodCmp ? periodCmp.getValue() : 30;
+		var rid = me.pageRid();
+		me._chartRid = rid;
 
 		me.setStatus(_('sitestatistics_metrika_loading'), false);
 
@@ -470,7 +503,8 @@ Ext.extend(siteStatistics.panel.Metrika, MODx.Panel, {
 			url: siteStatistics.config.connector_url,
 			params: {
 				action: 'mgr/metrika/getdata',
-				days: days
+				days: days,
+				rid: rid
 			},
 			listeners: {
 				success: {
@@ -534,6 +568,25 @@ Ext.extend(siteStatistics.panel.Metrika, MODx.Panel, {
 		var general = data.general || {};
 		var traffic = data.traffic || {};
 		var behavior = data.behavior || {};
+		var generalSets = [
+			{label: _('sitestatistics_metrika_users'), data: general.users || [], borderColor: '#4e6ef2', backgroundColor: 'rgba(78,110,242,0.12)', tension: 0.25, fill: true, pointRadius: 0, borderWidth: 2},
+			{label: _('sitestatistics_metrika_returning'), data: general.returning || [], borderColor: '#05b39a', backgroundColor: 'transparent', tension: 0.25, pointRadius: 0, borderWidth: 2},
+			{label: _('sitestatistics_metrika_pageviews'), data: general.views || [], borderColor: '#fc0', backgroundColor: 'transparent', tension: 0.25, pointRadius: 0, borderWidth: 2}
+		];
+		if (data.page && data.page.rid) {
+			var pageLabel = _('sitestatistics_metrika_page') + ' #' + data.page.rid;
+			if (data.page.title) pageLabel += ' — ' + data.page.title;
+			generalSets.push({
+				label: pageLabel,
+				data: data.page.views || [],
+				borderColor: '#c026d3',
+				backgroundColor: 'transparent',
+				borderDash: [6, 4],
+				tension: 0.25,
+				pointRadius: 0,
+				borderWidth: 2
+			});
+		}
 
 		this.destroyChart('general');
 		this.destroyChart('traffic');
@@ -548,11 +601,7 @@ Ext.extend(siteStatistics.panel.Metrika, MODx.Panel, {
 			type: 'line',
 			data: {
 				labels: labels,
-				datasets: [
-					{label: _('sitestatistics_metrika_users'), data: general.users || [], borderColor: '#4e6ef2', backgroundColor: 'rgba(78,110,242,0.12)', tension: 0.25, fill: true, pointRadius: 0, borderWidth: 2},
-					{label: _('sitestatistics_metrika_returning'), data: general.returning || [], borderColor: '#05b39a', backgroundColor: 'transparent', tension: 0.25, pointRadius: 0, borderWidth: 2},
-					{label: _('sitestatistics_metrika_pageviews'), data: general.views || [], borderColor: '#fc0', backgroundColor: 'transparent', tension: 0.25, pointRadius: 0, borderWidth: 2}
-				]
+				datasets: generalSets
 			},
 			options: this.chartOptions()
 		});
@@ -583,7 +632,7 @@ Ext.extend(siteStatistics.panel.Metrika, MODx.Panel, {
 			options: Ext.apply(this.chartOptions(), {
 				scales: {
 					y: {type: 'linear', position: 'left', title: {display: true, text: '%'}, beginAtZero: true, suggestedMax: 100},
-					y1: {type: 'linear', position: 'right', grid: {drawOnChartArea: false}, beginAtZero: true}
+					y1: {type: 'linear', position: 'right', grid: {drawOnChartArea: false}, min: 1}
 				}
 			})
 		});

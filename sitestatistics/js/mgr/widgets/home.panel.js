@@ -11,6 +11,7 @@ siteStatistics.panel.Home = function (config) {
 			id: 'sitestatistics-panel-title'
 		}, {
 			xtype: 'modx-tabs',
+			id: 'sitestatistics-home-tabs',
 			defaults: {border: false, autoHeight: true},
 			border: true,
 			hideMode: 'offsets',
@@ -26,6 +27,13 @@ siteStatistics.panel.Home = function (config) {
 					cls: 'main-wrapper'
 				}]
 			}, {
+				title: _('outreach_tab_title'),
+				layout: 'anchor',
+				items: [{
+					xtype: 'sitestatistics-panel-outreach',
+					cls: 'main-wrapper'
+				}]
+			}, {
 				title: _('resources_tab_title'),
 				layout: 'anchor',
 				items: [{
@@ -34,6 +42,7 @@ siteStatistics.panel.Home = function (config) {
 				}]
 			}, {
 				title: _('users_tab_title'),
+				id: 'sitestatistics-tab-users',
 				layout: 'anchor',
 				items: [{
 					xtype: 'sitestatistics-grid-users',

@@ -71,6 +71,7 @@ class siteStatisticsUsersGetListProcessor extends modObjectGetListProcessor
                     'OR:UserStatistics.ip:LIKE' => "%{$query}%",
                     'OR:UserStatistics.user_agent:LIKE' => "%{$query}%",
                     'OR:UserStatistics.referer:LIKE' => "%{$query}%",
+                    'OR:UserStatistics.user_key:LIKE' => "%{$query}%",
                 ];
                 if ($query == $this->modx->lexicon('stat_online_guest')) {
                     $where = array_merge($where, ['OR:Profile.fullname:IS' => null]);
@@ -124,6 +125,16 @@ class siteStatisticsUsersGetListProcessor extends modObjectGetListProcessor
             $user['message_showed'] = $this->modx->lexicon($month) . ' ' . date('j, Y, H:i', $user['message_showed']);
         }
         $user['actions'] = [];
+        if (!empty($user['uid'])) {
+            $user['actions'][] = [
+                'cls' => '',
+                'icon' => 'icon icon-cog',
+                'title' => $this->modx->lexicon('sitestatistics_open_user'),
+                'action' => 'openUser',
+                'button' => true,
+                'menu' => true,
+            ];
+        }
         // Show statistics
         $user['actions'][] = [
             'cls' => '',

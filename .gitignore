@@ -5,6 +5,7 @@ env
 *.pem
 *.key
 backup/
+sitestatistics/config.outreach.php
 
 # Данные оплаты на сервере
 assets/pay/orders/*

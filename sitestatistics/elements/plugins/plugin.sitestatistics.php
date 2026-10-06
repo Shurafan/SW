@@ -42,6 +42,7 @@ switch ($modx->event->name) {
             if ($modx->getOption('stat.count_online_users', null, false)) {
                 $siteStat->setUserStatistics();
             }
+            $siteStat->applyOutreachLead();
             $siteStat->need2ClearCache = $siteStat->getMessage();
         }
         break;

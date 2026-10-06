@@ -20,6 +20,10 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
 
         $dateTo = date('Y-m-d');
         $dateFrom = date('Y-m-d', strtotime('-' . ($days - 1) . ' days'));
+        $rid = (int)$this->getProperty('rid', 0);
+        if ($rid < 0) {
+            $rid = 0;
+        }
 
         /** @var siteStatistics $svc */
         $svc = $this->modx->getService(
@@ -177,6 +181,31 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
             $byDate[$row['date']] = $row;
         }
 
+        $pageByDate = [];
+        $pageTitle = '';
+        if ($rid > 0) {
+            $pageSql = "SELECT `date`, SUM(views) AS views
+                        FROM {$table}
+                        WHERE `date` BETWEEN :d1 AND :d2 AND rid = :rid
+                        {$excludeSql}
+                        GROUP BY `date`";
+            $pStmt = $this->modx->prepare($pageSql);
+            $pStmt->bindValue(':d1', $dateFrom);
+            $pStmt->bindValue(':d2', $dateTo);
+            $pStmt->bindValue(':rid', $rid, PDO::PARAM_INT);
+            foreach ($excludeParams as $ph => $val) {
+                $pStmt->bindValue($ph, $val);
+            }
+            $pStmt->execute();
+            while ($p = $pStmt->fetch(PDO::FETCH_ASSOC)) {
+                $pageByDate[$p['date']] = (int)$p['views'];
+            }
+            $resource = $this->modx->getObject('modResource', $rid);
+            if ($resource) {
+                $pageTitle = (string)$resource->get('pagetitle');
+            }
+        }
+
         $labels = [];
         $users = [];
         $returning = [];
@@ -189,6 +218,7 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
         $bounceRate = [];
 
         $sumExternal = $sumDirect = $sumInternal = $sumBots = 0;
+        $pageViews = [];
 
         $cursor = strtotime($dateFrom);
         $end = strtotime($dateTo);
@@ -220,6 +250,9 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
 
             $depth[] = $u > 0 ? round($v / $u, 2) : 0;
             $bounceRate[] = $u > 0 ? round($bounced * 100 / $u, 2) : 0;
+            if ($rid > 0) {
+                $pageViews[] = (int)($pageByDate[$d] ?? 0);
+            }
 
             $cursor = strtotime('+1 day', $cursor);
         }
@@ -315,6 +348,11 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
                 'bots' => $sumBots,
                 'days' => $days,
             ],
+            'page' => $rid > 0 ? [
+                'rid' => $rid,
+                'title' => $pageTitle,
+                'views' => $pageViews,
+            ] : null,
             'general' => [
                 'users' => $users,
                 'returning' => $returning,

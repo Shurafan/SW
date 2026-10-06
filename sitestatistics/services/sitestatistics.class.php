@@ -123,7 +123,7 @@ class siteStatistics
 </script>';
             $this->modx->controller->addHtml($output);
         } else {
-            $assetVer = '20260827j';
+			$assetVer = '20261001b';
             // CSS
             $this->modx->controller->addCss($this->config['cssUrl'] . 'mgr/main.css?v=' . $assetVer);
             $this->modx->controller->addCss($this->config['cssUrl'] . 'mgr/bootstrap.buttons.css?v=' . $assetVer);
@@ -137,6 +137,7 @@ class siteStatistics
             $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/widgets/users.grid.js?v=' . $assetVer);
             $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/widgets/onlineusers.grid.js?v=' . $assetVer);
             $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/widgets/metrika.panel.js?v=' . $assetVer);
+            $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/widgets/outreach.panel.js?v=' . $assetVer);
             $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/widgets/home.panel.js?v=' . $assetVer);
             $this->modx->controller->addJavascript($this->config['jsUrl'] . 'mgr/sections/home.js?v=' . $assetVer);
             $this->modx->controller->addHtml('<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>');
@@ -386,6 +387,164 @@ class siteStatistics
             if (!$userStat->save()) {
                 $this->modx->log(modX::LOG_LEVEL_ERROR, '[siteStatistics] Could not save online user data.');
             };
+        }
+    }
+
+    /**
+     * Визит по ссылке КП (utm_source=outreach): гость становится пользователем MODX.
+     * Данные письма подписаны lead_sig, ключ — OUTREACH_STATS_TOKEN.
+     */
+    public function applyOutreachLead()
+    {
+        $source = isset($_GET['utm_source']) ? (string)$_GET['utm_source'] : '';
+        if ($source !== 'outreach') {
+            return;
+        }
+        $userKey = $_SESSION['siteStatistics'] ?? '';
+        if ($userKey === '') {
+            return;
+        }
+        $email = trim((string)($_GET['lead_email'] ?? ''));
+        $company = trim((string)($_GET['lead_company'] ?? ''));
+        $name = trim((string)($_GET['lead_name'] ?? ''));
+        $token = trim((string)($_GET['utm_content'] ?? ''));
+        $sig = (string)($_GET['lead_sig'] ?? '');
+        if ($email === '' || $token === '' || $sig === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return;
+        }
+        $secret = $this->outreachSecret();
+        if ($secret === '') {
+            return;
+        }
+        $expected = hash_hmac('sha256', implode("\n", [$email, $company, $name, $token]), $secret);
+        if (!hash_equals($expected, $sig)) {
+            return;
+        }
+
+        $fullname = $name !== '' ? $name : ($company !== '' ? $company : $email);
+        $fullname = $this->limit($fullname, 100);
+        $company = $this->limit($company, 250);
+        try {
+            $uid = $this->ensureOutreachUser($email, $fullname, $company);
+        } catch (Throwable $e) {
+            $this->modx->log(modX::LOG_LEVEL_ERROR, '[siteStatistics] Outreach user: ' . $e->getMessage());
+            return;
+        }
+        if (!$uid) {
+            return;
+        }
+
+        $campaign = $this->limit(trim((string)($_GET['utm_campaign'] ?? '')), 120);
+        $referer = $campaign !== '' ? 'outreach:' . $campaign : 'outreach';
+        /** @var UserStatistics|null $stat */
+        $stat = $this->modx->getObject('UserStatistics', ['user_key' => $userKey]);
+        if ($stat) {
+            if (!(int)$stat->get('uid')) {
+                $stat->set('uid', $uid);
+            }
+            if ($stat->get('referer') === '' || $stat->get('referer') === null) {
+                $stat->set('referer', $referer);
+            }
+            $stat->save();
+            return;
+        }
+
+        $meta = $this->modx->getFieldMeta('UserStatistics');
+        $stat = $this->modx->newObject('UserStatistics');
+        $stat->fromArray([
+            'user_key' => $userKey,
+            'date' => date('Y-m-d H:i:s'),
+            'uid' => $uid,
+            'context' => $this->modx->context->get('key'),
+            'rid' => $this->modx->resource->id,
+            'ip' => $this->getUsetIP(),
+            'user_agent' => $this->limit(htmlspecialchars($_SERVER['HTTP_USER_AGENT'] ?? '', ENT_QUOTES), $meta['user_agent']['precision']),
+            'referer' => $this->limit($referer, $meta['referer']['precision']),
+        ], '', true, true);
+        $stat->save();
+    }
+
+    /**
+     * @return string
+     */
+    protected function outreachSecret()
+    {
+        $file = $this->modx->getOption('core_path') . 'components/sitestatistics/config.outreach.php';
+        if (!is_file($file)) {
+            return '';
+        }
+        $cfg = include $file;
+        return is_array($cfg) ? (string)($cfg['token'] ?? '') : '';
+    }
+
+    /**
+     * Пользователь для лида рассылки. Не трогает уже существующие учётки сотрудников.
+     *
+     * @return int
+     */
+    protected function ensureOutreachUser($email, $fullname, $company)
+    {
+        $username = 'kp-' . substr(hash('sha256', strtolower($email)), 0, 20);
+        /** @var modUser|null $user */
+        $user = $this->modx->getObject('modUser', ['username' => $username]);
+        if ($user) {
+            $profile = $user->getOne('Profile');
+            if ($profile && $profile->get('fullname') === '' && $fullname !== '') {
+                $profile->set('fullname', $fullname);
+                $profile->set('email', $email);
+                $profile->save();
+            }
+            $this->assignJkhGroup($user);
+            return (int)$user->get('id');
+        }
+
+        /** @var modUser $user */
+        $user = $this->modx->newObject('modUser');
+        $user->set('username', $username);
+        $user->set('active', 1);
+        $user->set('hash_class', $this->modx->getOption('hash_class', null, 'hashing.modPBKDF2'));
+        $user->set('password', bin2hex(random_bytes(16)));
+        /** @var modUserProfile $profile */
+        $profile = $this->modx->newObject('modUserProfile');
+        $profile->fromArray([
+            'fullname' => $fullname,
+            'email' => $email,
+            'comment' => $company,
+            'blocked' => 0,
+        ]);
+        $user->addOne($profile);
+        if (!$user->save()) {
+            $this->modx->log(modX::LOG_LEVEL_ERROR, '[siteStatistics] Could not create outreach user.');
+            return 0;
+        }
+        $this->assignJkhGroup($user);
+        return (int)$user->get('id');
+    }
+
+    /**
+     * Группа «ЖКХ» без доступа в админку — только метка лида.
+     *
+     * @param modUser $user
+     */
+    protected function assignJkhGroup($user)
+    {
+        $name = 'ЖКХ';
+        $group = $this->modx->getObject('modUserGroup', ['name' => $name]);
+        if (!$group) {
+            $group = $this->modx->newObject('modUserGroup');
+            $group->fromArray([
+                'name' => $name,
+                'description' => 'Лиды рассылки коммерческого предложения',
+                'parent' => 0,
+                'rank' => 0,
+                'dashboard' => 1,
+            ]);
+            if (!$group->save()) {
+                return;
+            }
+        }
+        if (!$user->isMember($name)) {
+            $user->joinGroup($name, 'Member');
         }
     }
 

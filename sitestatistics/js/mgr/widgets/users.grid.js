@@ -232,7 +232,7 @@ Ext.extend(siteStatistics.grid.Users, MODx.grid.Grid, {
 			renderer: siteStatistics.utils.renderActions,
 			sortable: false,
 			fixed: true,
-			width: 100,
+			width: 130,
 			id: 'actions'
 		}];
 	},
@@ -287,23 +287,40 @@ Ext.extend(siteStatistics.grid.Users, MODx.grid.Grid, {
 		//this.getStore().baseParams.query ='';
 		this.refresh();
 	},
-	onClick: function (e) {
-		var elem = e.getTarget();
-		if (elem.nodeName == 'BUTTON') {
-			var row = this.getSelectionModel().getSelected();
-			if (typeof(row) != 'undefined') {
-				var action = elem.getAttribute('action');
-				if (action == 'showMenu') {
-					var ri = this.getStore().find('user_key', row.id);
-					return this._showMenu(this, ri, e);
-				}
-				else if (typeof this[action] === 'function') {
-					this.menu.record = row.data;
-					return this[action](this, e, row);
-				}
-			}
+	openUser: function (btn, e, row) {
+		var record = (row && row.data) ? row.data : (this.menu && this.menu.record);
+		var uid = record ? parseInt(record.uid, 10) : 0;
+		if (!uid) {
+			return false;
 		}
-		return this.processEvent('click', e);
+		MODx.loadPage('security/user/update', 'id=' + uid);
+	},
+	onClickHandler: function (e) {
+		var elem = e.getTarget('button', 10);
+		if (!elem) {
+			return;
+		}
+		var action = elem.getAttribute('action');
+		if (!action || typeof this[action] !== 'function') {
+			return;
+		}
+		var rowIndex = this.getView().findRowIndex(elem);
+		if (rowIndex === false) {
+			return;
+		}
+		var sm = this.getSelectionModel();
+		if (!sm.isSelected(rowIndex)) {
+			sm.selectRow(rowIndex, false);
+		}
+		var row = this.getStore().getAt(rowIndex);
+		if (!this.menu) {
+			this._loadMenu();
+		}
+		this.menu.record = row.data;
+		if (action === 'showMenu') {
+			return this._showMenu(this, rowIndex, e);
+		}
+		return this[action](this, e, row);
 	},
 	_getSelectedIds: function () {
 		var ids = [];

@@ -562,31 +562,53 @@ function resolvePageBgUrl(url) {
     } catch (e) {}
     return abs;
 }
+/** Hero: WebP twin рядом с jpg/png (CWV), иначе исходник. */
+function pageBgCandidates(url) {
+    var abs = resolvePageBgUrl(url);
+    if (!abs) return [];
+    var list = [abs];
+    if (/\.(jpe?g|png)(\?|#|$)/i.test(abs)) {
+        list.unshift(abs.replace(/\.(jpe?g|png)(\?|#|$)/i, '.webp$2'));
+    }
+    return list;
+}
+function loadFirstImage(urls, done) {
+    var i = 0;
+    function next() {
+        if (i >= urls.length) { done(''); return; }
+        var src = urls[i++];
+        var img = new Image();
+        img.onload = function () { done(src); };
+        img.onerror = next;
+        img.src = src;
+    }
+    next();
+}
 function cssBgUrl(abs) {
     return 'url("' + String(abs).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '")';
 }
 function preloadPageBackground(url) {
-    var abs = resolvePageBgUrl(url);
-    if (!abs) return;
-    var img = new Image();
-    img.src = abs;
+    var list = pageBgCandidates(url);
+    if (!list.length) return;
+    loadFirstImage(list, function () {});
 }
 function setPageBackground(url) {
-    var abs = resolvePageBgUrl(url);
-    if (!abs || abs === pageBgWanted) return;
-    pageBgWanted = abs;
+    var list = pageBgCandidates(url);
+    if (!list.length) return;
+    var token = list[0];
+    if (token === pageBgWanted) return;
+    pageBgWanted = token;
     var el = ensurePageBgLayer();
-    var want = cssBgUrl(abs);
-    var shown = pageBgShown ? cssBgUrl(pageBgShown) : '';
-    el.style.backgroundImage = shown && shown !== want
-        ? want + ', ' + shown : want;
-    var img = new Image();
-    img.onload = function () {
-        if (pageBgWanted !== abs) return;
+    loadFirstImage(list, function (abs) {
+        if (!abs || pageBgWanted !== token) return;
+        pageBgWanted = abs;
+        var want = cssBgUrl(abs);
+        var shown = pageBgShown ? cssBgUrl(pageBgShown) : '';
+        el.style.backgroundImage = shown && shown !== want
+            ? want + ', ' + shown : want;
         pageBgShown = abs;
         el.style.backgroundImage = want;
-    };
-    img.src = abs;
+    });
 }
 window.setPageBackground = setPageBackground;
 window.preloadPageBackground = preloadPageBackground;

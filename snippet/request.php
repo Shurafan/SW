@@ -33,35 +33,33 @@ switch ($action) {
     $path = trim(parse_url($invet, PHP_URL_PATH), '/');
     [$catalog, $alias] = array_pad(explode('/', $path), 2, '');
     
-    $parent = $modx->getObject('modResource', ['published' => 1, 'alias' => $catalog]);
+    $parent = $modx->getObject('modResource', ['published' => 1, 'deleted' => 0, 'alias' => $catalog]);
     if (!$parent) { echo 'stop'; exit; }
-    
-    $children = $parent->getMany('Children');
+
+    // Только опубликованные, не удалённые (getMany('Children') отдаёт все)
+    $children = $modx->getCollection('modResource', [
+        'parent' => $parent->get('id'),
+        'published' => 1,
+        'deleted' => 0,
+    ]);
     if (empty($children)) { echo 'stop'; exit; }
-    
-    // Сортировка
+
     uasort($children, 'cmp');
-    
-    $res = null; // Обязательно инициализируем
-    $found = false; // Флаг: нашли ли мы текущий элемент
-    
+
+    $res = null;
+    $found = false;
+
     if ($alias) {
         foreach ($children as $child) {
-            // Если флаг поднят, значит предыдущий элемент был искомым. 
-            // Текущий $child — это следующий элемент. Отдаем его.
             if ($found) {
                 $res = otvet($catalog, $child);
                 break;
             }
-            // Поднимаем флаг, если нашли совпадение по алиасу
             if ($child->get('alias') === $alias) {
                 $found = true;
             }
         }
-        // Если цикл закончился, а $res все еще пуст (был последний элемент или не нашли)
-        // Можно добавить логику зацикливания или возврата ошибки, но пока просто ничего не делаем.
     } else {
-        // Если алиас не передан — отдаем первый элемент
         reset($children);
         $first = current($children);
         if ($first) {
