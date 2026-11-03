@@ -65,6 +65,19 @@ class siteStatisticsGetResourceUsersProcessor extends modObjectGetListProcessor
         //$c->setClassAlias('Stat');
         $c->join('UserStatistics', 'StatUser');
         $c->leftJoin('modUserProfile', 'User', 'User.internalKey = StatUser.uid');
+        // Боты только в источниках переходов
+        /** @var siteStatistics|null $svc */
+        $svc = $this->modx->getService(
+            'sitestatistics',
+            'siteStatistics',
+            $this->modx->getOption('sitestatistics_core_path', null, $this->modx->getOption('core_path') . 'components/sitestatistics/') . 'services/'
+        );
+        if ($svc) {
+            $botSql = $svc->getExcludeBotsSql('StatUser.user_agent');
+            if ($botSql !== '') {
+                $c->where($botSql);
+            }
+        }
         if (empty($show_total)) {
             $c->select(['PageStatistics.rid, PageStatistics.user_key, User.fullname, StatUser.uid, SUM(PageStatistics.views) as views']);
             $c->groupby('PageStatistics.rid,PageStatistics.user_key');

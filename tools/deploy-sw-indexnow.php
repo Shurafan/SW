@@ -81,15 +81,10 @@ foreach ($events as $ev) {
     echo "event $ev\n";
 }
 
-// clear plugin cache
-$cache = '/var/www/studiowest.ru/core/cache';
-foreach (['includes', 'scripts', 'system_settings', 'context_settings'] as $d) {
-    $p = "$cache/$d";
-    if (is_dir($p)) {
-        passthru('find ' . escapeshellarg($p) . ' -mindepth 1 -delete');
-    }
-}
-echo "cache cleared\n";
+// clear plugin cache (всегда chown www-data — иначе ломаются меню/листинги)
+require __DIR__ . '/sw-cache-safe.php';
+sw_cache_reset(['includes', 'scripts', 'system_settings', 'context_settings']);
+
 
 // smoke: key URL
 echo "key URL https://studiowest.ru/{$key}.txt\n";

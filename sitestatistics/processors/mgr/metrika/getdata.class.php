@@ -56,6 +56,9 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
             }
             $excludeSql = ' AND user_key NOT IN (' . implode(',', $placeholders) . ')';
         }
+        // Боты только в источниках переходов — не в посетителях/просмотрах
+        $excludeBotsSql = $svc ? $svc->getExcludeBotsUserKeysSql('user_key') : '';
+        $excludeSql .= $excludeBotsSql;
 
         $sql = "SELECT `date`,
                        COUNT(DISTINCT user_key) AS users,
@@ -79,6 +82,7 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
         $bounceExcludeSql = $exclude
             ? ' AND v.user_key NOT IN (' . implode(',', array_keys($excludeParams)) . ')'
             : '';
+        $bounceExcludeSql .= $svc ? $svc->getExcludeBotsUserKeysSql('v.user_key') : '';
         $bounceSql = "SELECT v.`date`, COUNT(*) AS bounced
                       FROM {$visitTable} v
                       WHERE v.`date` BETWEEN :d1 AND :d2
@@ -299,6 +303,7 @@ class siteStatisticsMetrikaGetDataProcessor extends modProcessor
         if ($exclude) {
             $bpSql .= ' AND v.user_key NOT IN (' . implode(',', array_keys($excludeParams)) . ')';
         }
+        $bpSql .= $svc ? $svc->getExcludeBotsUserKeysSql('v.user_key') : '';
         $bp = $this->modx->prepare($bpSql);
         $bp->bindValue(':d1', $dateFrom);
         $bp->bindValue(':d2', $dateTo);

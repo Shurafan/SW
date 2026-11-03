@@ -11,6 +11,8 @@ class siteStatistics
     public $need2ClearCache = false;
     protected $initialized = false;
     protected $ip_list = [];  //not allowed ip
+    /** @var string Cookie/session-independent visitor key (CWV: no PHPSESSID). */
+    protected $userKey = '';
 
 
     /**
@@ -173,36 +175,76 @@ class siteStatistics
     }
 
     /**
+     * Visitor key without requiring anonymous PHP session (keeps HTML cacheable).
+     * Primary store: cookie `siteStatistics`. $_SESSION synced only if session already active.
      */
     public function defineUserKey()
     {
         $key = 'siteStatistics';
+        $userKey = '';
+
         if ($this->modx->user->id != 0) {
             $query = $this->modx->newQuery('UserStatistics');
             $query->select('user_key');
             $query->where([
                 'uid' => $this->modx->user->id,
             ]);
-            $user_key = $this->modx->getValue($query->prepare());
-            if (!empty($user_key)) {
-                $_SESSION[$key] = $user_key;
+            $fromUser = $this->modx->getValue($query->prepare());
+            if (!empty($fromUser)) {
+                $userKey = (string) $fromUser;
             }
         }
-        if (empty($_COOKIE[$key])) {
-            if (empty($_SESSION[$key])) {
-                $_SESSION[$key] = md5(MODX_HTTP_HOST . time() . rand());
-            }
-            $cookieSecure = (boolean)$this->modx->getOption('session_cookie_secure', null, false);
-            $cookieHttpOnly = (boolean)$this->modx->getOption('session_cookie_httponly', null, true);
-            $cookieDomain = $this->modx->getOption('session_cookie_domain', null, '');
-            $cookiePath = $this->modx->getOption('session_cookie_path', null, MODX_BASE_URL);
-            setcookie($key, $_SESSION[$key], 0x7FFFFFFF, $cookieDomain, $cookiePath, $cookieSecure, $cookieHttpOnly);
-        } elseif (empty($_SESSION[$key])) {
-            $_SESSION[$key] = $_COOKIE[$key];
-        } elseif ($_SESSION[$key] != $_COOKIE[$key]) {
-            $_COOKIE[$key] = $_SESSION[$key];
+
+        if ($userKey === '' && !empty($_COOKIE[$key])) {
+            $userKey = (string) $_COOKIE[$key];
         }
-        $this->modx->setPlaceholder('sitestatistics.userKey', $_SESSION[$key]);
+        if ($userKey === '' && session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION[$key])) {
+            $userKey = (string) $_SESSION[$key];
+        }
+        if ($userKey === '') {
+            $userKey = md5(MODX_HTTP_HOST . microtime(true) . random_int(0, PHP_INT_MAX));
+        }
+
+        if (empty($_COOKIE[$key]) || (string) $_COOKIE[$key] !== $userKey) {
+            $cookieSecure = (boolean) $this->modx->getOption('session_cookie_secure', null, false);
+            $cookieHttpOnly = (boolean) $this->modx->getOption('session_cookie_httponly', null, true);
+            $cookieDomain = (string) $this->modx->getOption('session_cookie_domain', null, '');
+            $cookiePath = (string) $this->modx->getOption('session_cookie_path', null, MODX_BASE_URL);
+            if ($cookiePath === '') {
+                $cookiePath = '/';
+            }
+            setcookie($key, $userKey, [
+                'expires' => 0x7FFFFFFF,
+                'path' => $cookiePath,
+                'domain' => $cookieDomain,
+                'secure' => $cookieSecure,
+                'httponly' => $cookieHttpOnly,
+                'samesite' => 'Lax',
+            ]);
+            $_COOKIE[$key] = $userKey;
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION[$key] = $userKey;
+        }
+
+        $this->userKey = $userKey;
+        $this->modx->setPlaceholder('sitestatistics.userKey', $userKey);
+    }
+
+    /** @return string */
+    public function getUserKey()
+    {
+        if ($this->userKey !== '') {
+            return $this->userKey;
+        }
+        if (!empty($_COOKIE['siteStatistics'])) {
+            return (string) $_COOKIE['siteStatistics'];
+        }
+        if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['siteStatistics'])) {
+            return (string) $_SESSION['siteStatistics'];
+        }
+        return '';
     }
 
     /**
@@ -214,7 +256,11 @@ class siteStatistics
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] == 'XMLHttpRequest') {
             return false;
         }
-        $userKey = $_SESSION['siteStatistics'] ?? '';
+        // Боты только в источниках переходов
+        if ($this->isBot()) {
+            return false;
+        }
+        $userKey = $this->getUserKey();
         if ($userKey === '' || $this->isExcludedUser($userKey)) {
             return false;
         }
@@ -350,7 +396,14 @@ class siteStatistics
      */
     public function setUserStatistics()
     {
-        $user_key = $_SESSION['siteStatistics'];
+        // Боты только в источниках переходов
+        if ($this->isBot()) {
+            return;
+        }
+        $user_key = $this->getUserKey();
+        if ($user_key === '') {
+            return;
+        }
         if ($this->modx->getCount('UserStatistics', ['user_key' => $user_key])) {
             $query = $this->modx->newQuery('UserStatistics');
             $query->command('update');
@@ -400,7 +453,7 @@ class siteStatistics
         if ($source !== 'outreach') {
             return;
         }
-        $userKey = $_SESSION['siteStatistics'] ?? '';
+        $userKey = $this->getUserKey();
         if ($userKey === '') {
             return;
         }
@@ -639,7 +692,7 @@ class siteStatistics
      */
     public function getMessage()
     {
-        if ($user = $this->modx->getObject('UserStatistics', ['user_key' => $_SESSION['siteStatistics'], 'show_message' => 1])) {
+        if ($user = $this->modx->getObject('UserStatistics', ['user_key' => $this->getUserKey(), 'show_message' => 1])) {
             $message = $user->get('message');
             $user->set('show_message', 0);
             $user->set('message_showed', time());
@@ -704,6 +757,87 @@ class siteStatistics
     }
 
     /**
+     * Фрагменты UA из stat.not_allowed_user_agents (для ботов).
+     * @return array
+     */
+    public function getBotUserAgentParts()
+    {
+        $raw = (string)$this->modx->getOption('stat.not_allowed_user_agents', null, '');
+        return array_values(array_filter(array_map('trim', explode(',', $raw))));
+    }
+
+    /**
+     * Текущий запрос — бот по списку User-Agent.
+     * @param string|null $ua
+     * @return bool
+     */
+    public function isBot($ua = null)
+    {
+        if ($ua === null) {
+            $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'empty';
+        }
+        if ($ua === '' || $ua === null) {
+            $ua = 'empty';
+        }
+        $parts = $this->getBotUserAgentParts();
+        if (!$parts) {
+            return false;
+        }
+        $quoted = array_map('preg_quote', $parts);
+        $pattern = implode('|', $quoted);
+        return $pattern !== '' && (bool)preg_match('/(' . $pattern . ')/i', (string)$ua);
+    }
+
+    /**
+     * SQL WHERE (без AND): колонка UA не бот.
+     * @param string $column
+     * @return string
+     */
+    public function getExcludeBotsSql($column = 'user_agent')
+    {
+        $parts = $this->getBotUserAgentParts();
+        if (!$parts) {
+            return '';
+        }
+        $col = $column;
+        $conds = [];
+        foreach ($parts as $part) {
+            if (strtolower($part) === 'empty') {
+                $conds[] = "({$col} IS NOT NULL AND {$col} != '' AND LOWER({$col}) != 'empty')";
+                continue;
+            }
+            $safe = str_replace(['\\', '%', '_', "'"], ['\\\\', '\\%', '\\_', "''"], $part);
+            $conds[] = "{$col} NOT LIKE '%{$safe}%'";
+        }
+        return $conds ? '(' . implode(' AND ', $conds) . ')' : '';
+    }
+
+    /**
+     * SQL: исключить user_key ботов (по UA в UserStatistics).
+     * @param string $userKeyColumn
+     * @return string с ведущим AND или ''
+     */
+    public function getExcludeBotsUserKeysSql($userKeyColumn = 'user_key')
+    {
+        $parts = $this->getBotUserAgentParts();
+        if (!$parts) {
+            return '';
+        }
+        $botConds = [];
+        foreach ($parts as $part) {
+            if (strtolower($part) === 'empty') {
+                $botConds[] = "(u.user_agent IS NULL OR u.user_agent = '' OR LOWER(u.user_agent) = 'empty')";
+                continue;
+            }
+            $safe = str_replace(['\\', '%', '_', "'"], ['\\\\', '\\%', '\\_', "''"], $part);
+            $botConds[] = "u.user_agent LIKE '%{$safe}%'";
+        }
+        $usersTable = $this->modx->getTableName('UserStatistics');
+        return " AND {$userKeyColumn} NOT IN (SELECT u.user_key FROM {$usersTable} u WHERE "
+            . implode(' OR ', $botConds) . ')';
+    }
+
+    /**
      * Classify request source like Metrika: external / direct / internal / bot
      * @param string|null $forceSource
      * @return string
@@ -714,18 +848,8 @@ class siteStatistics
             return $forceSource;
         }
 
-        $ua = $_SERVER['HTTP_USER_AGENT'] ?? 'empty';
-        if ($ua === '') {
-            $ua = 'empty';
-        }
-        $bots = $this->modx->getOption('stat.not_allowed_user_agents');
-        if (!empty($bots)) {
-            $parts = array_filter(array_map('trim', explode(',', $bots)));
-            $quoted = array_map('preg_quote', $parts);
-            $pattern = implode('|', $quoted);
-            if ($pattern !== '' && preg_match('/(' . $pattern . ')/i', $ua)) {
-                return 'bot';
-            }
+        if ($this->isBot()) {
+            return 'bot';
         }
 
         $referer = trim($_SERVER['HTTP_REFERER'] ?? '');
@@ -763,7 +887,7 @@ class siteStatistics
             return false;
         }
 
-        $userKey = $_SESSION['siteStatistics'] ?? '';
+        $userKey = $this->getUserKey();
         if ($source !== 'bot' && $userKey !== '' && $this->isExcludedUser($userKey)) {
             return false;
         }

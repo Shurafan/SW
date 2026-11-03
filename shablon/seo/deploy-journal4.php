@@ -187,17 +187,10 @@ if ($shop) {
     echo "shop skip\n";
 }
 
-// clear cache
-$it = new RecursiveIteratorIterator(
-    new RecursiveDirectoryIterator('/var/www/studiowest.ru/core/cache', FilesystemIterator::SKIP_DOTS),
-    RecursiveIteratorIterator::CHILD_FIRST
-);
-foreach ($it as $f) {
-    if ($f->isDir()) {
-        @rmdir($f->getPathname());
-    } else {
-        @unlink($f->getPathname());
-    }
+$safe = '/tmp/sw-cache-safe.php';
+if (!is_file($safe)) {
+    $safe = dirname(__DIR__, 2) . '/tools/sw-cache-safe.php';
 }
-echo "cache ok\n";
+require $safe;
+sw_cache_reset();
 echo "done magazin=$id1 prinimaem=$id2\n";

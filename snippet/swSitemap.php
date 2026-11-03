@@ -8,10 +8,14 @@ foreach ($modx->getChildIds(45, 10) as $id) {
     $exclude[] = -((int) $id);
 }
 
+// cache=0: у pdoSitemap по умолчанию cache=true / cacheTime=600 в
+// core/cache/pdotools/sitemap/. Иначе после PDO/деплоя или OnDocFormSave
+// в sitemap.xml уезжает старый urlset без новых страниц.
 $xml = $modx->runSnippet('pdoSitemap', [
     'showHidden' => 1,
     'resources' => implode(',', $exclude),
     'forceXML' => false,
+    'cache' => 0,
 ]);
 if (!is_string($xml) || $xml === '') {
     return $xml;

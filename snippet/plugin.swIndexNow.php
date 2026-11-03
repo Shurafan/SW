@@ -54,13 +54,18 @@ $sendIndexNow = static function (array $urls, string $host, string $key, string 
         'urlList' => $urls,
     ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
+    // Bing принимает стабильно. Яндекс с этого VPS рвёт соединение (Empty reply / HTTP2) —
+    // всё равно пробуем yandex.ru коротко, без блокировки сохранения.
     $endpoints = [
         'https://api.indexnow.org/indexnow',
-        'https://yandex.com/indexnow',
+        'https://www.bing.com/indexnow',
+        'https://yandex.ru/indexnow',
     ];
 
     $log = [];
+    $ok = 0;
     foreach ($endpoints as $endpoint) {
+        $isYandex = str_contains($endpoint, 'yandex.');
         $ch = curl_init($endpoint);
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
@@ -70,29 +75,41 @@ $sendIndexNow = static function (array $urls, string $host, string $key, string 
             ],
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 8,
-            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => $isYandex ? 3 : 8,
+            CURLOPT_CONNECTTIMEOUT => $isYandex ? 2 : 4,
+            CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+            CURLOPT_USERAGENT => 'StudioWest-IndexNow/1.0',
         ]);
         $body = curl_exec($ch);
         $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $err = curl_error($ch);
         curl_close($ch);
+        if ($code >= 200 && $code < 300) {
+            $ok++;
+        }
         $log[] = $endpoint . ' => HTTP ' . $code . ($err ? " ($err)" : '') . ' ' . substr((string) $body, 0, 120);
     }
 
+    // log_level на проде = ERROR(1), INFO не пишется — логируем как ERROR.
     $modx->log(
-        modX::LOG_LEVEL_INFO,
-        '[swIndexNow] ' . implode('; ', $urls) . ' | ' . implode(' | ', $log),
+        modX::LOG_LEVEL_ERROR,
+        '[swIndexNow] ' . ($ok > 0 ? 'ok' : 'FAIL') . ' ' . implode('; ', $urls) . ' | ' . implode(' | ', $log),
         ['target' => 'FILE']
     );
 };
 
 /**
  * Пересборка статичного sitemap.xml.
+ * Не перезаписывает файл пустым urlset (иначе IndexNow затирает карту при сбое pdoSitemap).
  */
 $rebuildSitemap = static function () use ($modx): void {
     $xml = $modx->runSnippet('swSitemap');
     if (!is_string($xml) || !str_contains($xml, '<urlset')) {
+        $modx->log(modX::LOG_LEVEL_ERROR, '[swIndexNow] sitemap rebuild skipped: empty/invalid swSitemap', ['target' => 'FILE']);
+        return;
+    }
+    if (substr_count($xml, '<loc>') < 1) {
+        $modx->log(modX::LOG_LEVEL_ERROR, '[swIndexNow] sitemap rebuild skipped: urlset without <loc>', ['target' => 'FILE']);
         return;
     }
     $path = MODX_BASE_PATH . 'sitemap.xml';

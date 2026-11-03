@@ -53,6 +53,20 @@ class siteStatisticsUsersGetListProcessor extends modObjectGetListProcessor
         $c->leftJoin('modResource', 'Resource');
         $c->select('UserStatistics.user_key, UserStatistics.uid, UserStatistics.rid, UserStatistics.context, Profile.fullname, Resource.pagetitle');
 
+        // Боты только в источниках переходов — не в списке пользователей
+        /** @var siteStatistics|null $svc */
+        $svc = $this->modx->getService(
+            'sitestatistics',
+            'siteStatistics',
+            $this->modx->getOption('sitestatistics_core_path', null, $this->modx->getOption('core_path') . 'components/sitestatistics/') . 'services/'
+        );
+        if ($svc) {
+            $botSql = $svc->getExcludeBotsSql('UserStatistics.user_agent');
+            if ($botSql !== '') {
+                $c->where($botSql);
+            }
+        }
+
         if ($date = trim($this->getProperty('date', null))) {
             $c->where(
                 'DATE_FORMAT(`date`, "%Y-%m-%d") = ' . $this->modx->quote(date('Y-m-d', strtotime($date)))

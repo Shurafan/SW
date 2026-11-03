@@ -3,8 +3,10 @@
 <script>
 window.SwCodeSandboxConfig = {
     componentSwVersion: 'latest',
-    unpkgBase: 'https://unpkg.com',
-    sandboxBootUrl: 'assets/teme_sw/js/sandbox-boot.js'
+    vendorBase: '/assets/teme_sw/vendor',
+    vendorCache: '3.5.44-2.8.4',
+    pkgBase: '/assets/teme_sw/component-sw',
+    sandboxBootUrl: 'assets/teme_sw/js/sandbox-boot.js?v=3.5.44-2.8.4'
 };
 </script>
 <body>
@@ -50,7 +52,7 @@ window.SwCodeSandboxConfig = {
     [[!AjaxFormName? &chunk=`tpl.AjaxForm.newProject` &ind=`futerform`]]
     </div>
 </footer>
-<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<script src="assets/teme_sw/js/code-sandbox.js"></script>
-<script src="assets/teme_sw/js/listing.js?v=20260831u"></script>
+<script src="assets/teme_sw/vendor/vue/vue.global.prod.js?v=3.5.44-2.8.4"></script>
+<script src="assets/teme_sw/js/code-sandbox.js?v=3.5.44-2.8.4"></script>
+<script src="assets/teme_sw/js/listing.js?v=20260918a"></script>
 [[$ofter]]

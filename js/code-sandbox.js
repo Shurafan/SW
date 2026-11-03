@@ -15,19 +15,41 @@
     ];
     var { createApp, h } = Vue;
 
+    function absUrl(path, origin) {
+        if (!path) return path;
+        if (/^https?:\/\//i.test(path) || path.indexOf('//') === 0) return path;
+        return origin + (path.charAt(0) === '/' ? '' : '/') + path;
+    }
+
     function getCdnConfig() {
         var cfg = window.SwCodeSandboxConfig || {};
-        var unpkg = (cfg.unpkgBase || 'https://unpkg.com').replace(/\/$/, '');
         var origin = (typeof window !== 'undefined' && window.location && window.location.origin)
             ? window.location.origin
             : '';
+        var version = cfg.componentSwVersion || 'latest';
+        var cache = cfg.vendorCache || '3.5.44-2.8.4';
+        var vendorBase = absUrl(
+            (cfg.vendorBase || '/assets/teme_sw/vendor').replace(/\/$/, ''),
+            origin
+        );
+        var pkgBase = absUrl(
+            (cfg.pkgBase || '/assets/teme_sw/component-sw').replace(/\/$/, ''),
+            origin
+        );
+        var bootUrl = absUrl(
+            cfg.sandboxBootUrl || ('/assets/teme_sw/js/sandbox-boot.js?v=' + cache),
+            origin
+        );
+        var q = '?v=' + encodeURIComponent(cache);
         return {
-            version: cfg.componentSwVersion || 'latest',
-            vueVersion: cfg.vueVersion || '3',
-            compilerVersion: cfg.compilerVersion || '3',
-            unpkg: unpkg,
-            shims: cfg.esModuleShimsUrl || (unpkg + '/es-module-shims@1.10.0/dist/es-module-shims.js'),
-            bootUrl: cfg.sandboxBootUrl || (origin + '/assets/teme_sw/js/sandbox-boot.js')
+            version: version,
+            vendorBase: vendorBase,
+            pkgBase: pkgBase,
+            vueUrl: cfg.vueUrl || (vendorBase + '/vue/vue.esm-browser.prod.js' + q),
+            compilerUrl: cfg.compilerUrl || (vendorBase + '/vue-compiler-sfc/compiler-sfc.esm-browser.js' + q),
+            shims: cfg.esModuleShimsUrl || (vendorBase + '/es-module-shims/es-module-shims.js' + q),
+            bootUrl: bootUrl,
+            cache: cache
         };
     }
 
@@ -39,6 +61,7 @@
         return '<style>'
             + 'html.light,:root{color-scheme:light}'
             + 'body{margin:8px;font-family:sans-serif;color:#333;background:#fff}'
+            + '.sw-sandbox-row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}'
             + '</style>';
     }
 
@@ -50,12 +73,13 @@
         return html.replace(/<\/script/gi, '<\\/script');
     }
 
-    function componentHead(pkgBase, vueUrl, shimsUrl, compilerUrl) {
+    function componentHead(pkgBase, vueUrl, shimsUrl, compilerUrl, cache) {
+        var q = '?v=' + encodeURIComponent(cache || 'local');
         var importMap = JSON.stringify({
             imports: {
                 vue: vueUrl,
                 '@vue/compiler-sfc': compilerUrl,
-                '@studio-west/component-sw': pkgBase + '/dist/index.js'
+                '@studio-west/component-sw': pkgBase + '/dist/index.js' + q
             }
         });
 
@@ -64,7 +88,7 @@
             + '<script type="importmap">' + importMap + '<\/script>'
             + '<meta name="color-scheme" content="light">'
             + lightHeadStyle()
-            + '<link rel="stylesheet" href="' + pkgBase + '/dist/component-sw.css">'
+            + '<link rel="stylesheet" href="' + pkgBase + '/dist/component-sw.css' + q + '">'
             + '<script>document.documentElement.classList.add("light");<\/script>';
     }
 
@@ -78,8 +102,8 @@
             + '\n<\/script>';
     }
 
-    function buildComponentSrcdoc(code, pkgBase, vueUrl, shimsUrl, compilerUrl, bootModule) {
-        var head = componentHead(pkgBase, vueUrl, shimsUrl, compilerUrl);
+    function buildComponentSrcdoc(code, pkgBase, vueUrl, shimsUrl, compilerUrl, bootModule, cache) {
+        var head = componentHead(pkgBase, vueUrl, shimsUrl, compilerUrl, cache);
         var body = componentBody(code, bootModule);
         return '<!DOCTYPE html><html class="light"><head>' + head + '</head><body>' + body + '</body></html>';
     }
@@ -132,14 +156,12 @@
         }
 
         var cdn = getCdnConfig();
-        var pkgBase = cdn.unpkg + '/@studio-west/component-sw@' + cdn.version;
-        var vueUrl = cdn.unpkg + '/vue@' + cdn.vueVersion + '/dist/vue.esm-browser.prod.js';
-        var compilerUrl = cdn.unpkg + '/@vue/compiler-sfc@' + cdn.compilerVersion + '/dist/compiler-sfc.esm-browser.js';
+        var pkgBase = cdn.pkgBase;
         var fullDoc = /^<!DOCTYPE/i.test(code) || /^<html[\s>]/i.test(code);
         var withComponents = needsComponents(code);
 
         if (withComponents) {
-            return buildComponentSrcdoc(code, pkgBase, vueUrl, cdn.shims, compilerUrl, bootModule || '');
+            return buildComponentSrcdoc(code, pkgBase, cdn.vueUrl, cdn.shims, cdn.compilerUrl, bootModule || '', cdn.cache);
         }
 
         if (fullDoc) return applyLightDoc(escapeScriptBreaks(code));
@@ -226,6 +248,10 @@
             this._onResizeMsg = function (e) {
                 if (!self._iframe || e.source !== self._iframe.contentWindow) return;
                 if (!e.data || e.data.type !== 'sw-sandbox-resize') return;
+                if (e.data.mode === 'scroll') {
+                    self._iframe.style.height = Math.max(e.data.height || 240, 160) + 'px';
+                    return;
+                }
                 self._iframe.style.height = Math.max((e.data.height || 0) + 16, 80) + 'px';
             };
             window.addEventListener('message', this._onResizeMsg);
